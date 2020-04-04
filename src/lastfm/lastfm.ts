@@ -6,7 +6,7 @@ const fetchTopTracks = (
   startDate: Moment,
   endDate: Moment,
   limit: number
-) => {
+): Promise<Error | Track[]> => {
   const API_KEY = process.env.LASTFM_API_KEY;
   const LASTFM_BASE_URL = "http://ws.audioscrobbler.com/2.0/";
   const TOP_TRACKS_ENPOINT = generateTopTracksEndpoint(
@@ -16,7 +16,7 @@ const fetchTopTracks = (
     API_KEY
   );
 
-  axios
+  return axios
     .get(LASTFM_BASE_URL + TOP_TRACKS_ENPOINT)
     .then(res => {
       const rawResponse: RawResponse = JSON.parse(JSON.stringify(res.data));
@@ -24,9 +24,12 @@ const fetchTopTracks = (
         transformTrack(track)
       );
       const trimmedTracks = tracks.slice(0, limit + 1);
-      console.log(tracks[0]);
+      return trimmedTracks;
     })
-    .catch(err => console.log(err));
+    .catch(err => {
+      console.log(err);
+      return err;
+    });
 };
 
 const generateTopTracksEndpoint = (
