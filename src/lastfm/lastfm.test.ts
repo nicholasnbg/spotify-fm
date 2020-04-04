@@ -1,4 +1,4 @@
-import { generateTopTracksEndpoint } from "./lastfm";
+import { generateTopTracksEndpoint, transformTrack } from "./lastfm";
 import moment from "moment";
 
 describe("generateTopTracksEndpoint", () => {
@@ -17,3 +17,40 @@ describe("generateTopTracksEndpoint", () => {
     );
   });
 });
+
+describe("transformTrack", () => {
+  test("transforms raw track data", () => {
+    const rawTrack: RawTrack = {
+      artist: {
+        "#text": "artistA",
+        mbid: "someMbid"
+      },
+      "@attr": {
+        rank: 5
+      },
+      image: [
+        {
+          "#text": "someimagelinksmall",
+          size: "small"
+        },
+        {
+        "#text": "someimagelinkmedium",
+        size: "medium"
+      }],
+      name: "greatSong",
+      playcount: 100
+    }
+
+    const result = transformTrack(rawTrack)
+    const expected: Track = { 
+      artist: "artistA",
+      image: "someimagelinkmedium",
+      name: "greatSong",
+      playcount: 100,
+      rank: 5
+    }
+
+    expect(result).toBe(expected)
+  })
+})
+
