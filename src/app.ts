@@ -16,8 +16,8 @@ app.get("/login", async (req, res) => {
 app.get("/callback", async (req, res) => {
   const callbackQuery: CallbackQuery = req.query;
   if (callbackQuery.code) {
-    const tracks = await fetchTopTracks("nicholasnbg", lastWeek, today, 100);
     const tokens = await requestTokens(callbackQuery.code)
+    const tracks = await fetchTopTracks("nicholasnbg", lastWeek, today, 100);
   } else {
     res.send("Whoops, something went wrong:" + callbackQuery.error);
   }

@@ -10,10 +10,6 @@ const tokenEnpoint = `https://accounts.spotify.com/api/token`;
 const requestTokens = async (
   authCode: string
 ): Promise<string | TokenResponse> => {
-  const encodedAuth = new Buffer(
-    CLIENT_ID + ":" + "a4ce4fe7d681449a91a80b6cc6a2d67c"
-  ).toString("base64");
-
   const data = qs.stringify({
     grant_type: "authorization_code",
     code: authCode,
@@ -34,5 +30,28 @@ const requestTokens = async (
     .catch(err => "something went wrong fetching the tokens");
   return result;
 };
+
+const refreshToken = async (refreshToken: string) => {
+  const data = qs.stringify({
+    grant_type: "refresh_token",
+    refresh_token: refreshToken,
+    client_id: CLIENT_ID,
+    client_secret: process.env.SPOTIFY_SECRET
+  });
+
+  const result = await axios({
+    method: "post",
+    url: tokenEnpoint,
+    data,
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    }
+  })
+    .then(res => res.data)
+    .catch(err => "something went wrong refreshing the token");
+  return result;
+}
+
+
 
 export { authUri, requestTokens };
