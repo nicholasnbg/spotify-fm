@@ -5,7 +5,36 @@ interface CallbackQuery {
 }
 
 interface TokenResponse {
-  access_token: string,
-  refresh_token: string,
-  scope: string
+  access_token: string;
+  refresh_token: string;
+  scope: string;
+}
+
+interface SearchResponse {
+  items: RawTrackData[]
+}
+
+interface RawTrackData {
+  album: {
+    name: string;
+  };
+  artists: {
+    name: string;
+  }[];
+  name: string;
+  id: string;
+}
+
+interface SpotifyTrack {
+  name: string;
+  artist: string;
+  album: string;
+  id: string;
+}
+
+interface CreatePlaylistParams {
+  playlistName: string;
+  startDate: string;
+  endDate: string;
+  limit: number;
 }

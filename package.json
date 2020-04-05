@@ -11,11 +11,15 @@
   "author": "Nick Gray",
   "license": "MIT",
   "devDependencies": {
+    "@babel/cli": "^7.8.4",
+    "@babel/preset-env": "^7.9.0",
     "@types/axios": "^0.14.0",
     "@types/dotenv": "^8.2.0",
     "@types/express": "^4.17.4",
     "@types/jest": "^25.2.1",
+    "@types/lodash": "^4.14.149",
     "@types/moment": "^2.13.0",
+    "babel-plugin-lodash": "^3.3.4",
     "jest": "^25.2.7",
     "ts-jest": "^25.3.1",
     "tslint": "^6.1.1",
@@ -25,6 +29,7 @@
     "axios": "^0.19.2",
     "dotenv": "^8.2.0",
     "express": "^4.17.1",
+    "lodash": "^4.17.15",
     "moment": "^2.24.0"
   }
 }

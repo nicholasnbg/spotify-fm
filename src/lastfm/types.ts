@@ -25,7 +25,7 @@ interface RawTrack {
   playcount: number;
 }
 
-interface Track {
+interface LastFmTrack {
   name: string;
   artist: string;
   rank: number;

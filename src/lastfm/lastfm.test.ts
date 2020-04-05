@@ -42,7 +42,7 @@ describe("transformTrack", () => {
     }
 
     const result = transformTrack(rawTrack)
-    const expected: Track = { 
+    const expected: LastFmTrack = { 
       artist: "artistA",
       image: "someimagelinkmedium",
       name: "greatSong",

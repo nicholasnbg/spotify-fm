@@ -1,3 +1,5 @@
+import { take } from 'lodash/array';
+import _  from 'lodash';
 import axios from "axios";
 import { Moment } from "moment";
 
@@ -6,7 +8,7 @@ const fetchTopTracks = (
   startDate: Moment,
   endDate: Moment,
   limit: number
-): Promise<Error | Track[]> => {
+) => {
   const API_KEY = process.env.LASTFM_API_KEY;
   const LASTFM_BASE_URL = "http://ws.audioscrobbler.com/2.0/";
   const TOP_TRACKS_ENPOINT = generateTopTracksEndpoint(
@@ -23,8 +25,7 @@ const fetchTopTracks = (
       const tracks = rawResponse.weeklytrackchart.track.map(track =>
         transformTrack(track)
       );
-      const trimmedTracks = tracks.slice(0, limit + 1);
-      return trimmedTracks;
+      return tracks.slice(0, limit);
     })
     .catch(err => {
       console.log(err);
@@ -43,7 +44,7 @@ const generateTopTracksEndpoint = (
   return `?method=user.getweeklytrackchart&user=${username}&api_key=${apiKey}&format=json&from=${startUnix}&to=${endUnix}`;
 };
 
-const transformTrack = (rawTrack: RawTrack): Track => {
+const transformTrack = (rawTrack: RawTrack): LastFmTrack => {
   return {
     artist: rawTrack.artist["#text"],
     image: rawTrack.image.filter(i => i.size === "medium")[0]["#text"],
