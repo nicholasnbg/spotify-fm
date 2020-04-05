@@ -8,9 +8,9 @@ const authUri = `https://accounts.spotify.com/authorize?client_id=${CLIENT_ID}&r
 const tokenEnpoint = `https://accounts.spotify.com/api/token`;
 
 const at =
-  "BQD1PRlSXBoZ1n4Kfpts5utjkTTS5myauQxnjH-ZBDPHxbcSoqrNZUfwWqFt0bocf5HcAes2Gol_EMt4rRBcLOfBvkKH-kXlt3M73SWb6O6VSgzfJLOscHkV46FjaJojUqvEfCokfOHY1GIJp2OrZZz3RMM0Tzc_V489wMk0cR5rdPxlGtQ8ZchDL2RCep6AaDE18bi7wr-E1dY";
+  "BQDUkDIHGGNOPtJP1kZW8IGDdZV5pGq6_S0mZ3qJPNE59lQJ-gT_xKEqeXensVzDOEHZEIDKk8e7ZBF9a-NrYE2hCZU415YAQY7M69pEBFqEGwc_N-0tPjRTEzCpiQ9fXcG8fH_dPODdm8V02rvCJIOFjzCn_KEvEJTTB-H0q_A4qlw6h5RQ3BamCN1CLCsvb06ofaVtw09TSog";
 
-const requestTokens = async (authCode: string): Promise<string | TokenResponse> => {
+const requestTokens = async (authCode: string): Promise<TokenResponse> => {
   const data = qs.stringify({
     grant_type: "authorization_code",
     code: authCode,
@@ -19,7 +19,7 @@ const requestTokens = async (authCode: string): Promise<string | TokenResponse> 
     client_secret: process.env.SPOTIFY_SECRET
   });
 
-  const result = await axios({
+  return axios({
     method: "post",
     url: tokenEnpoint,
     data,
@@ -28,8 +28,9 @@ const requestTokens = async (authCode: string): Promise<string | TokenResponse> 
     }
   })
     .then(res => res.data)
-    .catch(err => "something went wrong fetching the tokens");
-  return result;
+    .catch(err => {
+      throw Error(err);
+    });
 };
 
 const refreshToken = async (token: string) => {
@@ -40,7 +41,7 @@ const refreshToken = async (token: string) => {
     client_secret: process.env.SPOTIFY_SECRET
   });
 
-  const result = await axios({
+  return await axios({
     method: "post",
     url: tokenEnpoint,
     data,
@@ -49,29 +50,27 @@ const refreshToken = async (token: string) => {
     }
   })
     .then(res => res.data)
-    .catch(err => "something went wrong refreshing the token");
-  return result;
+    .catch(err => {
+      throw Error(err);
+    });
 };
 
-const createPlaylist = async (accessToken: string, playlistParams: CreatePlaylistParams, tracks: LastFmTrack[]) => {
-  const spotifyTracks = await Promise.all(tracks.map(track => searchTrack(at, track)));
+const createPlaylist = async (authCode: string, playlistParams: CreatePlaylistParams, rawTracks: LastFmTrack[]) => {
   const currentUserId = await getCurrentUserId(at);
-  if(typeof currentUserId === "string") {
-    const playlistName = generateName(playlistParams.startDate, playlistParams.endDate)
-    const playlistId = await generateNewPlaylist(at, playlistName, "test decription", currentUserId)
-    console.log(playlistId)
-  } else {
-    console.log("shit")
-  }
+  const playlistName = await  generateName(playlistParams.startDate, playlistParams.endDate);
+  const playlistId = await generateNewPlaylist(at, playlistName, "test decription", currentUserId);
+  Promise.all(rawTracks.map(track => searchTrack(at, track))).then(tracks => {
+    addTracksToPlaylist(at, playlistId, tracks);
+  });
 };
 
-const searchTrack = async (authCode: string = "", track: LastFmTrack): Promise<Error | SpotifyTrack> => {
+const searchTrack = (authCode: string = "", track: LastFmTrack): Promise<SpotifyTrack> => {
   const queryParams = {
     q: `${track.name} ${track.artist}`,
     type: "track",
     limit: "1"
   };
-  const result = await axios({
+  const result = axios({
     method: "get",
     url: `https://api.spotify.com/v1/search?${qs.stringify(queryParams)}`,
     headers: {
@@ -85,16 +84,19 @@ const searchTrack = async (authCode: string = "", track: LastFmTrack): Promise<E
         name: trackData.name,
         artist: trackData.artists[0]?.name,
         album: trackData.album.name,
-        id: trackData.id
+        id: trackData.id,
+        uri: trackData.uri
       };
       return spotifyTrack;
     })
-    .catch(err => Error("Error searching for track:" + err));
+    .catch(err => {
+      throw new Error("Error searching for track:" + err);
+    });
 
   return result;
 };
 
-const getCurrentUserId = async (authCode: string): Promise<Error | string> => {
+const getCurrentUserId = async (authCode: string): Promise<string> => {
   return await axios({
     url: "https://api.spotify.com/v1/me",
     headers: {
@@ -102,29 +104,65 @@ const getCurrentUserId = async (authCode: string): Promise<Error | string> => {
     }
   })
     .then(res => res.data.id)
-    .catch(err => Error("error getting user: " + err));
+    .catch(err => {
+      throw Error("error getting user: " + err);
+    });
 };
 
-const generateNewPlaylist = async (authCode: string, playlistName: string, description: string, userId: string): Promise<Error | string> => {
-
+const generateNewPlaylist = async (
+  authCode: string,
+  playlistName: string,
+  description: string,
+  userId: string
+): Promise<string> => {
   const data = JSON.stringify({
     name: playlistName,
     description
-  })
+  });
 
-  console.log(data)
+  console.log(data);
   return await axios({
-    method: 'post',
+    method: "post",
     url: `https://api.spotify.com/v1/users/${userId}/playlists`,
     headers: {
       Authorization: `Bearer ${authCode}`,
       "Content-Type": "application/json"
     },
     data
-  }).then(res => {
-    return res.data.id
-  }).catch(err => Error(err));
-}
+  })
+    .then(res => {
+      return res.data.id;
+    })
+    .catch(err => {
+      throw Error(err);
+    });
+};
+
+const addTracksToPlaylist = async (
+  authCode: string,
+  playlistId: string,
+  tracks: SpotifyTrack[]
+): Promise<Error | any> => {
+  const uris = tracks.map(track => track.uri);
+  const data = JSON.stringify({
+    uris
+  });
+
+  return await axios({
+    method: "post",
+    url: `https://api.spotify.com/v1/playlists/${playlistId}/tracks`,
+    headers: {
+      Authorization: `Bearer ${authCode}`,
+      "Content-Type": "application/json"
+    },
+    data
+  })
+    .then(res => {
+      console.log("Added track succesfully");
+      return res.data.snapshotId;
+    })
+    .catch(err => Error(err));
+};
 
 const isTokenResponse = (arg: any): arg is TokenResponse => {
   return (
@@ -138,8 +176,12 @@ const isTokenResponse = (arg: any): arg is TokenResponse => {
   );
 };
 
+const isTrack = (arg: any): arg is SpotifyTrack => {
+  return arg && arg.name && typeof arg.name === "string" && arg.album && typeof arg.album === "string";
+};
+
 const generateName = (start: string, end: string): string => {
-  return `Top tracks from ${start} - ${end}`
-}
+  return `Top tracks from ${start} - ${end}`;
+};
 
 export { authUri, requestTokens, isTokenResponse, createPlaylist };

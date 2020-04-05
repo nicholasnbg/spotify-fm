@@ -23,6 +23,7 @@ interface RawTrackData {
   }[];
   name: string;
   id: string;
+  uri: string;
 }
 
 interface SpotifyTrack {
@@ -30,6 +31,7 @@ interface SpotifyTrack {
   artist: string;
   album: string;
   id: string;
+  uri: string
 }
 
 interface CreatePlaylistParams {
