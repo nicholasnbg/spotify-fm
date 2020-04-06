@@ -1,12 +1,9 @@
-interface ErrorOr<T> {
-  errors?: string[];
-  value?: T;
+export type ErrorOr<T> = T | Error
+
+export function isError<T>(arg: ErrorOr<T>): arg is Error {
+  return arg instanceof Error;
 }
 
-interface Right<T> extends ErrorOr<T> {
-  value: T
-}
-
-interface Left extends ErrorOr<any> {
-  errors: string[];
+export function isSuccess<T>(arg: ErrorOr<T>): arg is T {
+  return !isError(arg);
 }

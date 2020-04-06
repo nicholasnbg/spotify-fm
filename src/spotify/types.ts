@@ -1,10 +1,14 @@
+import { ErrorOr } from './../util/ErrorOr';
+
+type FetchTokens = (s: string, o: object) => Promise<ErrorOr<Tokens>>
+
 interface CallbackQuery {
   code?: string;
   error?: string;
   state?: string;
 }
 
-interface TokenResponse {
+interface Tokens {
   access_token: string;
   refresh_token: string;
   scope: string;
@@ -41,3 +45,5 @@ interface CreatePlaylistParams {
   endDate: string;
   limit: number;
 }
+
+export {FetchTokens, CallbackQuery, Tokens, SearchResponse, RawTrackData, SpotifyTrack, CreatePlaylistParams}

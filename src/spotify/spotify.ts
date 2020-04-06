@@ -1,6 +1,9 @@
+import { ErrorOr } from './../util/ErrorOr';
 import axios from "axios";
 import rateLimit from "axios-rate-limit";
 import qs from "qs";
+import { FetchTokens, Tokens, CreatePlaylistParams, SearchResponse, RawTrackData, SpotifyTrack } from './types';
+
 
 const CLIENT_ID = "9875b3946f944772849f68a9ed8d153b";
 const scopes = "playlist-modify-public playlist-modify-private";
@@ -18,27 +21,16 @@ const rateLimitConfig = {
 };
 const rateLimitHttpClient = rateLimit(axios.create(), rateLimitConfig);
 
-const requestTokens = async (authCode: string): Promise<TokenResponse> => {
-  const data = qs.stringify({
+const requestTokens = async (authCode: string, fetchTokens: FetchTokens): Promise<ErrorOr<Tokens>> => {
+  const data = {
     grant_type: "authorization_code",
     code: authCode,
     redirect_uri: "http://localhost:3535/callback",
     client_id: CLIENT_ID,
     client_secret: process.env.SPOTIFY_SECRET,
-  });
+  };
 
-  return axios({
-    method: "post",
-    url: tokenEnpoint,
-    data,
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-  })
-    .then((res) => res.data)
-    .catch((err) => {
-      throw Error(err);
-    });
+  return fetchTokens(tokenEnpoint, data);
 };
 
 const refreshToken = async (token: string) => {
@@ -68,11 +60,13 @@ const createPlaylist = async (authCode: string, playlistParams: CreatePlaylistPa
   const playlistName = await generateName(playlistParams.startDate, playlistParams.endDate);
   const playlistId = await generateNewPlaylist(authCode, playlistName, "test decription", currentUserId);
   Promise.all(
-    rawTracks.map((track) =>
-      searchTrack(authCode, track).catch((err) => {
-        throw Error("New error here" + err);
-      })
-    ).filter(t => t !== null)
+    rawTracks
+      .map((track) =>
+        searchTrack(authCode, track).catch((err) => {
+          throw Error("New error here" + err);
+        })
+      )
+      .filter((t) => t !== null)
   )
     .then((tracks) => {
       addTracksToPlaylist(authCode, playlistId, tracks).catch((err) => {
@@ -100,10 +94,10 @@ const searchTrack = (authCode: string, track: LastFmTrack): Promise<SpotifyTrack
     .then((res) => {
       const searchResponse: SearchResponse = JSON.parse(JSON.stringify(res.data.tracks));
       // const trackData: RawTrackData = !(searchResponse.total === 0) ? searchResponse.items[0] : null;
-      let trackData: RawTrackData = null
-      if(!(searchResponse.total === 0)){
-        console.log("We got a response")
-        trackData = searchResponse.items[0]
+      let trackData: RawTrackData = null;
+      if (!(searchResponse.total === 0)) {
+        console.log("We got a response");
+        trackData = searchResponse.items[0];
       }
 
       let validTrack: SpotifyTrack | null = null;
@@ -179,10 +173,11 @@ const addTracksToPlaylist = async (
   tracks: SpotifyTrack[]
 ): Promise<Error | any> => {
   const uris = tracks
-    .filter(track => track !== null)
+    .filter((track) => track !== null)
     .map((track) => {
-      console.log({track})
-      return track.uri});
+      console.log({ track });
+      return track.uri;
+    });
   const data = JSON.stringify({
     uris,
   });
@@ -205,7 +200,7 @@ const addTracksToPlaylist = async (
     });
 };
 
-const isTokenResponse = (arg: any): arg is TokenResponse => {
+const isTokenResponse = (arg: any): arg is Tokens => {
   return (
     arg &&
     arg.access_token &&

@@ -50,7 +50,7 @@ describe("transformTrack", () => {
       rank: 5
     }
 
-    expect(result).toBe(expected)
+    expect(result).toStrictEqual(expected)
   })
 })
 
