@@ -11,7 +11,8 @@ interface TokenResponse {
 }
 
 interface SearchResponse {
-  items: RawTrackData[]
+  items: RawTrackData[];
+  total: number;
 }
 
 interface RawTrackData {
@@ -31,7 +32,7 @@ interface SpotifyTrack {
   artist: string;
   album: string;
   id: string;
-  uri: string
+  uri: string;
 }
 
 interface CreatePlaylistParams {
