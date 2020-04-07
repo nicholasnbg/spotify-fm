@@ -6,7 +6,6 @@ import moment from "moment";
 import { authUri, requestTokens, createPlaylist } from "./spotify/spotify";
 import { fetchTokens } from "./spotify/fetchTokens";
 import { CallbackQuery, Tokens, CreatePlaylistParams } from "./spotify/types";
-import { isSuccess } from "./util/ErrorOr";
 
 const app = express();
 app.use(express.urlencoded({ extended: true }));
@@ -27,11 +26,12 @@ app.get(
   async (req, res) => {
     const callbackQuery: CallbackQuery = req.query; // No idea if this does what I think it does..
     if (callbackQuery.code) {
-      const fetchedTokens = await requestTokens(callbackQuery.code, fetchTokens);
-      if (isSuccess(fetchedTokens)) {
-        console.log("got the tokens: " + fetchedTokens);
-        tokens = fetchedTokens;
-      } else {
+      const errorOrTokens = await requestTokens(callbackQuery.code, fetchTokens);
+      errorOrTokens.map(ts => {
+        console.log("got the tokens: " + errorOrTokens);
+        tokens = ts;
+      })
+      if(errorOrTokens.isLeft){
         res.status(401).send("Could not get tokens from Spotify");
       }
     }

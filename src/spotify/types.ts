@@ -14,6 +14,14 @@ interface Tokens {
   scope: string;
 }
 
+interface UserId {
+  value: string;
+}
+
+interface PlaylistId { 
+  value: string
+}
+
 interface SearchResponse {
   items: RawTrackData[];
   total: number;
@@ -46,4 +54,4 @@ interface CreatePlaylistParams {
   limit: number;
 }
 
-export {FetchTokens, CallbackQuery, Tokens, SearchResponse, RawTrackData, SpotifyTrack, CreatePlaylistParams}
+export {FetchTokens, CallbackQuery, Tokens, SearchResponse, RawTrackData, SpotifyTrack, CreatePlaylistParams, UserId, PlaylistId}

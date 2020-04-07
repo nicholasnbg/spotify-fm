@@ -1,4 +1,6 @@
-import { requestTokens } from "./spotify";
+import { Right } from "monet";
+import { Left } from "monet";
+import { requestTokens, handleGetUserIdResponse } from "./spotify";
 import { handleTokenResponse } from "./fetchTokens";
 import { Tokens } from "./types";
 
@@ -49,13 +51,36 @@ describe("handleTokenResponse", () => {
 
     const result = handleTokenResponse(JSON.stringify(response), {});
 
-    expect(result).toEqual(expectedTokens);
+    expect(result).toEqual(Right(expectedTokens));
   });
 
   test("invalid response", () => {
-    const response = {}
+    const response = {};
     const result = handleTokenResponse(JSON.stringify(response), {});
 
-    expect(result).toEqual(Error("Couldn't parse tokens response"))
-  })
+    expect(result).toEqual(Left(Error("Couldn't parse tokens response")));
+  });
+});
+
+describe("handleUserIdResponse", () => {
+  test("for valid reponse", () => {
+    const expectedId = "12345";
+
+    const response = {
+      data: {
+        id: expectedId,
+      },
+    };
+
+    const result = handleGetUserIdResponse(JSON.stringify(response), {});
+
+    expect(result).toEqual({ value: expectedId });
+  });
+
+  test("for invalid response", () => {
+    const response = {};
+    const result = handleGetUserIdResponse(JSON.stringify(response), {});
+
+    expect(result).toEqual(Error("Could not retrieve user ID"));
+  });
 });
