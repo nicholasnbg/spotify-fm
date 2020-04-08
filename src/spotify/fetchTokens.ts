@@ -1,10 +1,9 @@
-import { ErrorOr } from "./../util/ErrorOr";
-import {Left, Right} from "monet"
+import {Either, Left, Right} from "monet"
 import axios from "axios";
 import qs from "qs";
 import { Tokens } from "./types";
 
-const fetchTokens = (tokenEndpoint: string, data: object): Promise<ErrorOr<Tokens>> => {
+const fetchTokens = (tokenEndpoint: string, data: object): Promise<Either<Error, Tokens>> => {
   const headers = {
     "Content-Type": "application/x-www-form-urlencoded",
   };
@@ -17,10 +16,9 @@ const fetchTokens = (tokenEndpoint: string, data: object): Promise<ErrorOr<Token
   return axios.post(tokenEndpoint, qs.stringify(data), config);
 };
 
-const handleTokenResponse = (res: any, headers: any): ErrorOr<Tokens> => {
-  const { data } = JSON.parse(res);
+const handleTokenResponse = (data: any, headers: any): Either<Error, Tokens> => {
   if (data) {
-    const { access_token, refresh_token, scope } = data;
+    const { access_token, refresh_token, scope } = JSON.parse(data);
     return Right({
       access_token,
       refresh_token,

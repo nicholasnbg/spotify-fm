@@ -1,6 +1,6 @@
-import { ErrorOr } from './../util/ErrorOr';
+import { Either } from "monet"
 
-type FetchTokens = (s: string, o: object) => Promise<ErrorOr<Tokens>>
+type FetchTokens = (s: string, o: object) => Promise<Either<Error, Tokens>>
 
 interface CallbackQuery {
   code?: string;
