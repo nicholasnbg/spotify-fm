@@ -1,6 +1,6 @@
-import { ErrorOr } from './../util/ErrorOr';
+import { Either } from "fp-ts/lib/Either"
 
-type FetchTokens = (s: string, o: object) => Promise<ErrorOr<Tokens>>
+type FetchTokens = (s: string, o: object) => Promise<Either<Error, Tokens>>
 
 interface CallbackQuery {
   code?: string;
@@ -12,6 +12,14 @@ interface Tokens {
   access_token: string;
   refresh_token: string;
   scope: string;
+}
+
+interface UserId {
+  value: string;
+}
+
+interface PlaylistId { 
+  value: string
 }
 
 interface SearchResponse {
@@ -46,4 +54,4 @@ interface CreatePlaylistParams {
   limit: number;
 }
 
-export {FetchTokens, CallbackQuery, Tokens, SearchResponse, RawTrackData, SpotifyTrack, CreatePlaylistParams}
+export {FetchTokens, CallbackQuery, Tokens, SearchResponse, RawTrackData, SpotifyTrack, CreatePlaylistParams, UserId, PlaylistId}

@@ -1,34 +1,36 @@
-import { ErrorOr } from './../util/ErrorOr';
-import axios from 'axios';
-import qs from 'qs';
-import { Tokens } from './types';
+import { Either, right, left } from 'fp-ts/lib/Either';
+import axios from "axios";
+import qs from "qs";
+import { Tokens } from "./types";
 
-
-const fetchTokens = (tokenEndpoint: string, data: object): Promise<ErrorOr<Tokens>> => {
+const fetchTokens = (tokenEndpoint: string, data: object): Promise<Either<Error, Tokens>> => {
   const headers = {
-      "Content-Type": "application/x-www-form-urlencoded"
-  }
+    "Content-Type": "application/x-www-form-urlencoded",
+  };
 
   const config = {
-    headers,
-    transformResponse: handleTokenResponse
-  }
+    headers
+  };
 
   return axios.post(tokenEndpoint, qs.stringify(data), config)
-}
+    .then(res => handleTokenResponse(res));
+};
 
-const handleTokenResponse = (res: any, headers: any): ErrorOr<Tokens> => {
-  const {data} = JSON.parse(res)
-  if(data){
-  const {access_token, refresh_token, scope} = data
-    return {
-      access_token,
-      refresh_token,
-      scope
-    }
+const handleTokenResponse = (res: any): Either<Error, Tokens> => {
+  const {data} = res
+  let result = null;
+  if (data?.access_token) {
+    console.log(data.access_token)
+    result =  right({
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      scope: data.scope
+    });
   } else {
-    return Error("Couldn't parse tokens response")
+    result =  left(Error("Couldn't parse tokens response"));
   }
-}
 
-export {fetchTokens, handleTokenResponse}
+  return result
+};
+
+export { fetchTokens, handleTokenResponse };

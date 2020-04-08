@@ -1,4 +1,5 @@
-import { requestTokens } from "./spotify";
+import { Either, right, left, map, isLeft } from "fp-ts/lib/Either";
+import { requestTokens, handleGetUserIdResponse } from "./spotify";
 import { handleTokenResponse } from "./fetchTokens";
 import { Tokens } from "./types";
 
@@ -10,28 +11,30 @@ describe("requestTokens", () => {
       scope: "ascope",
     };
 
-    const fetch = (s: string, o: object): Promise<Tokens> => {
+    const fetch = (s: string, o: object): Promise<Either<Error, Tokens>> => {
       const tokenResponse: Tokens = {
         access_token: "atoken",
         refresh_token: "rtoken",
         scope: "ascope",
       };
-      return Promise.resolve(tokenResponse);
+      return Promise.resolve(right(tokenResponse));
     };
 
     const result = await requestTokens("someAuth", fetch);
 
-    expect(result).toEqual(expectedTokens);
+    map<Tokens, void>((tokens) => {
+      expect(tokens).toEqual(expectedTokens);
+    })(result);
   });
 
   test("when fails to retrieve tokens", async () => {
-    const fetch = (s: string, o: object): Promise<Tokens> => {
-      return Promise.reject(Error("Failed to fetch tokens"));
+    const fetch = (s: string, o: object): Promise<Either<Error, Tokens>> => {
+      const a = Promise.resolve(left(Error("Failed to fetch tokens")));
+      return a;
     };
 
-    await requestTokens("someAuth", fetch).catch((err) => {
-      expect(err.message).toEqual("Failed to fetch tokens");
-    });
+    const result = await requestTokens("someAuth", fetch);
+    expect(result).toEqual(left(Error("Failed to fetch tokens")));
   });
 });
 
@@ -43,19 +46,41 @@ describe("handleTokenResponse", () => {
       scope: "someScope",
     };
 
-    const response = {
+    const data = {
       data: expectedTokens,
     };
 
-    const result = handleTokenResponse(JSON.stringify(response), {});
+    const result = handleTokenResponse(data);
 
-    expect(result).toEqual(expectedTokens);
+    expect(result).toEqual(right(expectedTokens));
   });
 
   test("invalid response", () => {
-    const response = {}
-    const result = handleTokenResponse(JSON.stringify(response), {});
+    const response = {};
+    const result = handleTokenResponse(JSON.stringify({ data: response }));
 
-    expect(result).toEqual(Error("Couldn't parse tokens response"))
-  })
+    expect(result).toEqual(left(Error("Couldn't parse tokens response")));
+  });
+});
+
+describe("handleGetUserIdResponse", () => {
+  test("for valid reponse", () => {
+    const expectedId = "12345";
+
+    const response = {
+      data: {
+        id: expectedId,
+      },
+    };
+
+    const result = handleGetUserIdResponse(response);
+
+    expect(result).toEqual(right({ value: expectedId }));
+  });
+
+  test("for invalid response", () => {
+    const result = handleGetUserIdResponse({});
+
+    expect(result).toEqual(left(Error("Could not retrieve user ID")));
+  });
 });

@@ -29,6 +29,7 @@
     "axios-rate-limit": "^1.2.1",
     "dotenv": "^8.2.0",
     "express": "^4.17.1",
+    "fp-ts": "^2.5.3",
     "moment": "^2.24.0"
   }
 }

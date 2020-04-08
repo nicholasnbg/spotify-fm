@@ -1,12 +1,14 @@
-import { isTokenResponse } from "./spotify/spotify";
+import { map, bimap } from 'fp-ts/lib/Either';
+// import { isTokenResponse } from "./spotify/spotify";
 import { fetchTopTracks } from "./lastfm/lastfm";
 import express from "express";
 import dotenv from "dotenv";
 import moment from "moment";
-import { authUri, requestTokens, createPlaylist } from "./spotify/spotify";
+// import { authUri, requestTokens, createPlaylist } from "./spotify/spotify";
+import { authUri, requestTokens } from "./spotify/spotify";
 import { fetchTokens } from "./spotify/fetchTokens";
 import { CallbackQuery, Tokens, CreatePlaylistParams } from "./spotify/types";
-import { isSuccess } from "./util/ErrorOr";
+import { left, either, isRight } from "fp-ts/lib/Either";
 
 const app = express();
 app.use(express.urlencoded({ extended: true }));
@@ -25,39 +27,44 @@ app.get("/login", async (req, res) => {
 app.get(
   "/callback",
   async (req, res) => {
-    const callbackQuery: CallbackQuery = req.query; // No idea if this does what I think it does..
-    if (callbackQuery.code) {
-      const fetchedTokens = await requestTokens(callbackQuery.code, fetchTokens);
-      if (isSuccess(fetchedTokens)) {
-        console.log("got the tokens: " + fetchedTokens);
-        tokens = fetchedTokens;
-      } else {
-        res.status(401).send("Could not get tokens from Spotify");
+    try {
+      const callbackQuery: CallbackQuery = req.query;
+      if (callbackQuery.code) {
+        const errorOrTokens = await requestTokens(callbackQuery.code, fetchTokens)
+
+        const handleLeft = (e:Error) => {res.status(401).send("Could not get tokens from Spotify")}
+        const handleRight = (t:Tokens) => {tokens = t}
+
+        bimap<Error, void, Tokens, void>(handleLeft, handleRight)(errorOrTokens)
       }
+    } catch (error) {
+      console.log(error)
     }
+
+
   }
 );
 
-app.post("/createPlaylist", async (req, res) => {
-  try {
-    const params: CreatePlaylistParams = req.body as CreatePlaylistParams;
-    const start = moment(params.startDate);
-    const end = moment(params.endDate);
+// app.post("/createPlaylist", async (req, res) => {
+//   try {
+//     const params: CreatePlaylistParams = req.body as CreatePlaylistParams;
+//     const start = moment(params.startDate);
+//     const end = moment(params.endDate);
 
-    await fetchTopTracks("nicholasnbg", start, end, params.limit)
-      .then((tracks) => {
-        createPlaylist(at, params, tracks);
-      })
-      .catch((err) => {
-        throw Error(err);
-      });
+//     await fetchTopTracks("nicholasnbg", start, end, params.limit)
+//       .then((tracks) => {
+//         createPlaylist(at, params, tracks);
+//       })
+//       .catch((err) => {
+//         throw Error(err);
+//       });
 
-    res.send("Succesfully created playlist");
-  } catch (error) {
-    console.log("I'm in this mofo");
-    console.log(error);
-  }
-});
+//     res.send("Succesfully created playlist");
+//   } catch (error) {
+//     console.log("I'm in this mofo");
+//     console.log(error);
+//   }
+// });
 
 app.listen(port, (err) => {
   if (err) {
