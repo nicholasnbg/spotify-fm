@@ -10,6 +10,9 @@ export const generateNewPlaylist = (
   description: string,
   userId: UserId
 ): T.Task<Either<Error, PlaylistId>> => {
+
+  console.log("CREATING PLAYLIST")
+
   const data = JSON.stringify({
     name: playlistName,
     description,
@@ -27,8 +30,8 @@ export const generateNewPlaylist = (
   };
 
   return T.map(flatten)(TE.tryCatch(
-    () => axios.post(endpoint, JSON.stringify(data), config).then((res) => handleGeneratePlaylistResponse(res)),
-    (err) => new Error("Error creating new playlist")
+    () => axios.post(endpoint, data, config).then((res) => handleGeneratePlaylistResponse(res)),
+    (err) => new Error("Error creating new playlist: " + String(err))
   ));
 };
 

@@ -59,3 +59,43 @@ const transformTrack = (rawTrack: any): Either<Error, SpotifyTrack> => {
     return left(Error("Could not transform track"));
   }
 };
+
+export const addTracksToPlaylist = (
+  authCode: string,
+  playlistId: string,
+  tracks: SpotifyTrack[]
+): T.Task<Either<Error, string>> => {
+
+  console.log("ADDING TRACKS")
+
+  const uris = tracks.map((track) => {
+    console.log(track.name);
+    return track.uri;
+  });
+  const data = JSON.stringify({
+    uris
+  });
+
+  const endpoint = `https://api.spotify.com/v1/playlists/${playlistId}/tracks`;
+
+  const headers = {
+    Authorization: `Bearer ${authCode}`,
+    "Content-Type": "application/json",
+  };
+  const config = {
+    headers,
+  };
+
+  return T.map(flatten)(
+    TE.tryCatch(
+      () => axios.post(endpoint, data, config).then((res) => handleAddTracksResponse(res)),
+      err => Error("Couldn't add tracks:" + String(err))
+    )
+  )
+
+};
+
+export const handleAddTracksResponse = (res: any): Either<Error, string> => {
+  const { data } = res;
+  return data.snapshot_id ? right(data.snapshot_id) : left(Error("Something went wrong handling addTracks response "));
+};
