@@ -1,6 +1,5 @@
-import { map } from "fp-ts/lib/Either";
+import { left, right } from "fp-ts/lib/Either";
 import { handleGeneratePlaylistResponse } from "./playlist";
-import { right, left, Either } from "fp-ts/lib/Either";
 
 describe("handleGeneratePlaylistResponse", () => {
   test("handles valid response", () => {
@@ -19,6 +18,11 @@ describe("handleGeneratePlaylistResponse", () => {
 
   test("handles invalid response", () => {
     const result = handleGeneratePlaylistResponse({});
-    expect(result).toEqual(left(Error("Error creating new playlist")));
-  });
+
+    expect(result).toEqual(
+      left(
+        Error("Error creating new playlist")
+      )
+    )
+  })
 });

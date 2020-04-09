@@ -5,6 +5,7 @@ import { FetchTokens, Tokens, CreatePlaylistParams, SearchResponse, RawTrackData
 import { right, left, Either, chain } from "fp-ts/lib/Either";
 import { pipe } from "fp-ts/lib/pipeable";
 import { searchTrack } from "./tracks";
+import { Task } from "fp-ts/lib/Task";
 
 const CLIENT_ID = "9875b3946f944772849f68a9ed8d153b";
 const scopes = "playlist-modify-public playlist-modify-private";
@@ -16,7 +17,7 @@ const tokenEnpoint = `https://accounts.spotify.com/api/token`;
 const at =
   "BQCU3eg8Lu4_oeCUskJl3lkUr0au-JAeProxlYwLRGerl7wuqHxr3lF30qlusQbGoIxpJtQP6PWwMuL5L3BXx085Z2TjbEm4y0cYzRFktx272BiG6k9JmlYzF9AiYwJCMAJ99SG2vcwlvnPaPfh8RNlTz19ooIQpRuqx7hSNBwNsWl8J5F_04ZjhPHqa9JwwckneHjkbo95pwak";
 
-export const requestTokens = (authCode: string, fetchTokens: FetchTokens): Promise<Either<Error, Tokens>> => {
+export const requestTokens = (authCode: string, fetchTokens: FetchTokens): Task<Either<Error, Tokens>> => {
   const data = {
     grant_type: "authorization_code",
     code: authCode,
@@ -27,10 +28,6 @@ export const requestTokens = (authCode: string, fetchTokens: FetchTokens): Promi
 
   return fetchTokens(tokenEnpoint, data);
 };
-
-const doSomething= (id: UserId): Either<Error, number> => {
-  return right(id.value.length)
-}
 
 // const createPlaylist = async (
 //   authCode: string,

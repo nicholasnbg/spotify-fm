@@ -1,6 +1,7 @@
-import { Either, right, left, map, isLeft } from "fp-ts/lib/Either";
-import { requestTokens, handleGetUserIdResponse } from "./spotify";
+import { Either, left, right } from "fp-ts/lib/Either";
+import { Task } from "fp-ts/lib/Task";
 import { handleTokenResponse } from "./fetchTokens";
+import { handleGetUserIdResponse, requestTokens } from "./spotify";
 import { Tokens } from "./types";
 
 describe("requestTokens", () => {
@@ -11,30 +12,29 @@ describe("requestTokens", () => {
       scope: "ascope",
     };
 
-    const fetch = (s: string, o: object): Promise<Either<Error, Tokens>> => {
+    const fetch = (s: string, o: object): Task<Either<Error, Tokens>> => {
       const tokenResponse: Tokens = {
         access_token: "atoken",
         refresh_token: "rtoken",
         scope: "ascope",
       };
-      return Promise.resolve(right(tokenResponse));
+      return () => Promise.resolve(right(tokenResponse));
     };
 
-    const result = await requestTokens("someAuth", fetch);
-
-    map<Tokens, void>((tokens) => {
-      expect(tokens).toEqual(expectedTokens);
-    })(result);
+    requestTokens("someAuth", fetch)().then((result) => {
+      expect(result).toEqual(right(expectedTokens));
+    });
   });
 
   test("when fails to retrieve tokens", async () => {
-    const fetch = (s: string, o: object): Promise<Either<Error, Tokens>> => {
+    const fetch = (s: string, o: object): Task<Either<Error, Tokens>> => {
       const a = Promise.resolve(left(Error("Failed to fetch tokens")));
-      return a;
+      return () => a;
     };
 
-    const result = await requestTokens("someAuth", fetch);
-    expect(result).toEqual(left(Error("Failed to fetch tokens")));
+    requestTokens("someAuth", fetch)().then((result) => {
+      expect(result).toEqual(left(Error("Failed to fetch tokens")));
+    });
   });
 });
 

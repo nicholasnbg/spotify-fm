@@ -1,6 +1,7 @@
 import { Either } from "fp-ts/lib/Either"
+import { Task } from "fp-ts/lib/Task"
 
-type FetchTokens = (s: string, o: object) => Promise<Either<Error, Tokens>>
+type FetchTokens = (s: string, o: object) => Task<Either<Error, Tokens>>
 
 interface CallbackQuery {
   code?: string;

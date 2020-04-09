@@ -1,14 +1,14 @@
 import { map, bimap } from 'fp-ts/lib/Either';
-// import { isTokenResponse } from "./spotify/spotify";
+import * as E from "fp-ts/lib/Either"
 import { fetchTopTracks } from "./lastfm/lastfm";
 import express from "express";
 import dotenv from "dotenv";
 import moment from "moment";
-// import { authUri, requestTokens, createPlaylist } from "./spotify/spotify";
 import { authUri, requestTokens } from "./spotify/spotify";
 import { fetchTokens } from "./spotify/fetchTokens";
 import { CallbackQuery, Tokens, CreatePlaylistParams } from "./spotify/types";
 import { left, either, isRight } from "fp-ts/lib/Either";
+import { pipe } from 'fp-ts/lib/pipeable';
 
 const app = express();
 app.use(express.urlencoded({ extended: true }));
@@ -27,15 +27,21 @@ app.get("/login", async (req, res) => {
 app.get(
   "/callback",
   async (req, res) => {
+    const handleLeft = (e:Error) => {res.status(401).send("Could not get tokens from Spotify")}
+    const handleRight = (t:Tokens) => {tokens = t}
+
     try {
       const callbackQuery: CallbackQuery = req.query;
       if (callbackQuery.code) {
-        const errorOrTokens = await requestTokens(callbackQuery.code, fetchTokens)
-
-        const handleLeft = (e:Error) => {res.status(401).send("Could not get tokens from Spotify")}
-        const handleRight = (t:Tokens) => {tokens = t}
-
-        bimap<Error, void, Tokens, void>(handleLeft, handleRight)(errorOrTokens)
+        requestTokens(callbackQuery.code, fetchTokens)().then(errorOrTokens => {
+          pipe(
+            errorOrTokens,
+            E.fold(
+              handleLeft,
+              handleRight
+            )
+          )
+        })
       }
     } catch (error) {
       console.log(error)

@@ -1,18 +1,21 @@
 import { PlaylistId, UserId } from "./types";
 import axios from "axios";
-import { right, left, Either } from "fp-ts/lib/Either";
-export const generateNewPlaylist = async (
+import { right, left, Either, flatten } from "fp-ts/lib/Either";
+import * as T from "fp-ts/lib/Task";
+import * as TE from "fp-ts/lib/TaskEither";
+
+export const generateNewPlaylist = (
   authCode: string,
   playlistName: string,
   description: string,
   userId: UserId
-): Promise<Either<Error, PlaylistId>> => {
+): T.Task<Either<Error, PlaylistId>> => {
   const data = JSON.stringify({
     name: playlistName,
     description,
   });
 
-  const endpoint = `https://api.spotify.com/v1/users/${userId.value}/playlists`
+  const endpoint = `https://api.spotify.com/v1/users/${userId.value}/playlists`;
 
   const headers = {
     Authorization: `Bearer ${authCode}`,
@@ -20,13 +23,16 @@ export const generateNewPlaylist = async (
   };
 
   const config = {
-    headers
+    headers,
   };
 
-  return axios.post(endpoint, JSON.stringify(data), config).then(res => handleGeneratePlaylistResponse(res))
+  return T.map(flatten)(TE.tryCatch(
+    () => axios.post(endpoint, JSON.stringify(data), config).then((res) => handleGeneratePlaylistResponse(res)),
+    (err) => new Error("Error creating new playlist")
+  ));
 };
 
-export const handleGeneratePlaylistResponse = (res: any,): Either<Error, PlaylistId> => {
+export const handleGeneratePlaylistResponse = (res: any): Either<Error, PlaylistId> => {
   const {data} = res;
   return data?.id ? right({ value: data.id }): left(Error("Error creating new playlist"));
 };
