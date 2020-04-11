@@ -1,8 +1,9 @@
 import { Either, left, right } from "fp-ts/lib/Either";
 import { Task } from "fp-ts/lib/Task";
 import { handleTokenResponse } from "./fetchTokens";
-import { handleGetUserIdResponse, requestTokens } from "./spotify";
+import { requestTokens } from "./spotify";
 import { Tokens } from "./types";
+import { handleGetUserIdResponse } from "./user";
 
 describe("requestTokens", () => {
   test("when succesfully retrieves tokens", async () => {

@@ -1,14 +1,14 @@
-import { map, bimap } from 'fp-ts/lib/Either';
-import * as E from "fp-ts/lib/Either"
-import { fetchTopTracks } from "./lastfm/lastfm";
-import express from "express";
 import dotenv from "dotenv";
+import express from "express";
+import * as E from "fp-ts/lib/Either";
+import * as T from "fp-ts/lib/Task";
+import { pipe } from "fp-ts/lib/pipeable";
 import moment from "moment";
-import { authUri, requestTokens, createPlaylist } from "./spotify/spotify";
+import { fetchTopTracks } from "./lastfm/lastfm";
 import { fetchTokens } from "./spotify/fetchTokens";
-import { CallbackQuery, Tokens, CreatePlaylistParams } from "./spotify/types";
-import { left, either, isRight } from "fp-ts/lib/Either";
-import { pipe } from 'fp-ts/lib/pipeable';
+import { authUri, createPlaylist, requestTokens } from "./spotify/spotify";
+import { CallbackQuery, CreatePlaylistParams, Tokens } from "./spotify/types";
+import { traverseEither } from "./util/SequencesTraverses";
 
 const app = express();
 app.use(express.urlencoded({ extended: true }));
@@ -24,56 +24,42 @@ app.get("/login", async (req, res) => {
   res.redirect(authUri);
 });
 
-app.get(
-  "/callback",
-  async (req, res) => {
-    const handleLeft = (e:Error) => {res.status(401).send("Could not get tokens from Spotify")}
-    const handleRight = (t:Tokens) => {tokens = t}
+app.get("/callback", async (req, res) => {
+  const handleLeft = (e: Error) => {
+    res.status(401).send("Could not get tokens from Spotify" + String(e));
+  };
+  const handleRight = (t: Tokens) => {
+    tokens = t;
+  };
 
-    try {
-      const callbackQuery: CallbackQuery = req.query;
-      if (callbackQuery.code) {
-        requestTokens(callbackQuery.code, fetchTokens)().then(errorOrTokens => {
-          pipe(
-            errorOrTokens,
-            E.fold(
-              handleLeft,
-              handleRight
-            )
-          )
-        })
-      }
-    } catch (error) {
-      console.log(error)
+  try {
+    const callbackQuery: CallbackQuery = req.query;
+    if (callbackQuery.code) {
+      requestTokens(callbackQuery.code, fetchTokens)().then((errorOrTokens) => {
+        pipe(errorOrTokens, E.fold(handleLeft, handleRight));
+      });
     }
-
-
+  } catch (error) {
+    console.log(error);
   }
-);
+});
 
 app.post("/createPlaylist", async (req, res) => {
-    const params: CreatePlaylistParams = req.body as CreatePlaylistParams;
-    const start = moment(params.startDate);
-    const end = moment(params.endDate);
+  const params: CreatePlaylistParams = req.body as CreatePlaylistParams;
+  const start = moment(params.startDate);
+  const end = moment(params.endDate);
 
-    const tracks = await fetchTopTracks("nicholasnbg", start, end, params.limit).then(res => {
-      return res
-    })
-    await createPlaylist(at, params, tracks)()
+  const errorOrTracksTask = fetchTopTracks("nicholasnbg", start, end, params.limit);
 
-    console.log("CREATED PLAYLIST SUCCESFULLY, NICE!")
-    
-    res.send("Succesfully created playlist");
+  const result = await T.chain((errorOrTracks: E.Either<Error, LastFmTrack[]>) => {
+    return T.map(E.flatten)(
+      traverseEither(errorOrTracks, (tracks: LastFmTrack[]) => createPlaylist(tokens.access_token, params, tracks))
+    );
+  })(errorOrTracksTask)();
 
+  console.log("CREATED PLAYLIST SUCCESFULLY, NICE!");
+
+  res.send("Succesfully created playlist");
 });
 
-app.listen(port, (err) => {
-  if (err) {
-    return console.log(err);
-  }
-
-  return console.log(`server is listening on port ${port}`);
-});
-
-const today = moment();
-const lastWeek = moment().subtract(1, "weeks");
+app.listen(port, (err) => (err ? console.log(err) : console.log(`server is listening on port ${port}`)));

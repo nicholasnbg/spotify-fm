@@ -1,24 +1,36 @@
 import axios from "axios";
+import * as E from "fp-ts/lib/Either";
+import * as T from "fp-ts/lib/Task";
+import * as TE from "fp-ts/lib/TaskEither";
 import { Moment } from "moment";
+import { right, left, flatten } from "fp-ts/lib/Either";
 
-const fetchTopTracks = (username: string, startDate: Moment, endDate: Moment, limit: number) => {
+const fetchTopTracks = (
+  username: string,
+  startDate: Moment,
+  endDate: Moment,
+  limit: number
+): T.Task<E.Either<Error, LastFmTrack[]>> => {
   const API_KEY = process.env.LASTFM_API_KEY;
   const LASTFM_BASE_URL = "http://ws.audioscrobbler.com/2.0/";
   const TOP_TRACKS_ENPOINT = generateTopTracksEndpoint(username, startDate, endDate, API_KEY);
 
-  const endpoint = LASTFM_BASE_URL + TOP_TRACKS_ENPOINT
-  console.log("FETCHING TRACKS FROM: " + endpoint)
-  return axios
-    .get(endpoint)
-    .then(res => {
-      const rawResponse: RawResponse = JSON.parse(JSON.stringify(res.data));
-      const tracks = rawResponse.weeklytrackchart.track.map(track => transformTrack(track));
-      return tracks.slice(0, limit);
-    })
-    .catch(err => {
-      throw Error(err);
-    });
+  const endpoint = LASTFM_BASE_URL + TOP_TRACKS_ENPOINT;
+  console.log("FETCHING TRACKS FROM: " + endpoint);
+
+  return T.map(flatten)(
+    TE.tryCatch(
+      () => axios.get(endpoint).then(res => handleTopTracksResponse(res, limit)),
+      (err) => new Error("Problem fetching top tracks: " + String(err))
+    )
+  )
 };
+
+const handleTopTracksResponse = (res: any, limit: number): E.Either<Error, LastFmTrack[]> => {
+  const { data } = res;
+  const tracks = data?.weeklytrackchart?.track
+  return tracks ? right(tracks.map(track => transformTrack(track)).slice(0, limit)) : left(Error("Error transforming tracks response"))
+}
 
 const generateTopTracksEndpoint = (username: string, startDate: Moment, endDate: Moment, apiKey: string): string => {
   const startUnix = startDate.startOf("D").unix();
@@ -27,12 +39,11 @@ const generateTopTracksEndpoint = (username: string, startDate: Moment, endDate:
 };
 
 const transformTrack = (rawTrack: RawTrack): LastFmTrack => ({
-    artist: rawTrack.artist["#text"],
-    image: rawTrack.image.filter(i => i.size === "medium")[0]["#text"],
-    name: rawTrack.name,
-    playcount: rawTrack.playcount,
-    rank: rawTrack["@attr"].rank
-  });
-
+  artist: rawTrack.artist["#text"],
+  image: rawTrack.image.filter((i) => i.size === "medium")[0]["#text"],
+  name: rawTrack.name,
+  playcount: rawTrack.playcount,
+  rank: rawTrack["@attr"].rank,
+});
 
 export { fetchTopTracks, generateTopTracksEndpoint, transformTrack };

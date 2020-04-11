@@ -1,25 +1,11 @@
-import { generateNewPlaylist } from "./playlist";
-import axios from "axios";
-import qs from "qs";
-import {
-  FetchTokens,
-  Tokens,
-  CreatePlaylistParams,
-  SearchResponse,
-  RawTrackData,
-  SpotifyTrack,
-  UserId,
-  PlaylistId,
-} from "./types";
-import { right, left, Either, chain } from "fp-ts/lib/Either";
 import * as E from "fp-ts/lib/Either";
+import { Either } from "fp-ts/lib/Either";
 import * as T from "fp-ts/lib/Task";
-import * as TE from "fp-ts/lib/TaskEither";
-import * as A from "fp-ts/lib/Array";
-import { pipe, pipeable } from "fp-ts/lib/pipeable";
-import { searchTrack, addTracksToPlaylist } from "./tracks";
-import { getApplicative, make } from "fp-ts/lib/Const";
-import { Monoid } from "fp-ts/lib/Monoid";
+import { seqArrayTask, traverseEither } from "../util/SequencesTraverses";
+import { generateNewPlaylist } from "./playlist";
+import { addTracksToPlaylist, searchTrack } from "./tracks";
+import { CreatePlaylistParams, FetchTokens, PlaylistId, SpotifyTrack, Tokens, UserId } from "./types";
+import { getCurrentUserId } from "./user";
 
 const CLIENT_ID = "9875b3946f944772849f68a9ed8d153b";
 const scopes = "playlist-modify-public playlist-modify-private";
@@ -43,67 +29,40 @@ export const requestTokens = (authCode: string, fetchTokens: FetchTokens): T.Tas
   return fetchTokens(tokenEnpoint, data);
 };
 
-const _ = pipeable(T.task);
-
-const seqEitherTask = E.either.sequence(T.task);
-const seqArrayTask = A.array.sequence(T.task);
 
 export const createPlaylist = (
   authCode: string,
   playlistParams: CreatePlaylistParams,
   rawTracks: LastFmTrack[]
 ): T.Task<Either<Error, string>> => {
-  const errorOrUserIdTask = getCurrentUserId(authCode);
   const playlistName = generateName(playlistParams.startDate, playlistParams.endDate);
 
-  return _.chain((errorOrUserId: Either<Error, UserId>) => {
-    const errorOrTask = E.map((id: UserId) => generateNewPlaylist(authCode, playlistName, "test decription", id))(
-      errorOrUserId
+  const errorOrUserIdTask = getCurrentUserId(authCode);
+
+  return T.chain((errorOrUserId: Either<Error, UserId>) => {
+    const errorOrPlaylistIdTask = T.map(E.flatten)(
+      traverseEither(errorOrUserId, (id: UserId) => generateNewPlaylist(authCode, playlistName, "test description", id))
     );
-    const errorOrPlaylistIdTask = T.map(E.flatten)(seqEitherTask(errorOrTask));
-    return _.chain((errorOrPlaylistId: Either<Error, PlaylistId>) => {
-        const eitherTaskRes =  E.map((playlistId: PlaylistId) => {
-          console.log("SEARCHING TRACKS")
-          const tracksTask = seqArrayTask(rawTracks.map((track) => searchTrack(authCode, track)));
-          return _.chain((eoTracksArr: Either<Error, SpotifyTrack>[]) => {
-            const validTracks = eoTracksArr.filter(E.isRight).map((r) => r.right);
-            const addTracks = addTracksToPlaylist(authCode, playlistId.value, validTracks);
-            return addTracks;
-          })(tracksTask);
-        })(errorOrPlaylistId);
-        return T.map(E.flatten)(seqEitherTask(eitherTaskRes))
+
+    return T.chain((errorOrPlaylistId: Either<Error, PlaylistId>) => {
+      const eitherTaskRes = traverseEither(errorOrPlaylistId, (playlistId: PlaylistId) => {
+        console.log("SEARCHING TRACKS");
+        const tracksTask = seqArrayTask(rawTracks.map((track) => searchTrack(authCode, track)));
+
+        return T.chain((eoTracksArr: Either<Error, SpotifyTrack>[]) => {
+          const validTracks = eoTracksArr.filter(E.isRight).map((r) => r.right);
+          const addTracks = addTracksToPlaylist(authCode, playlistId.value, validTracks);
+          return addTracks;
+        })(tracksTask);
+      });
+
+      return T.map(E.flatten)(eitherTaskRes);
     })(errorOrPlaylistIdTask);
   })(errorOrUserIdTask);
 };
 
-const getCurrentUserId = (authCode: string): T.Task<Either<Error, UserId>> => {
-  const headers = {
-    Authorization: `Bearer ${authCode}`,
-  };
 
-  const config = {
-    headers,
-  };
-
-  return T.map(E.flatten)(
-    TE.tryCatch(
-      () => axios.get("https://api.spotify.com/v1/me", config).then((res) => handleGetUserIdResponse(res)),
-      (err) => Error("Problem getting current user" + err)
-    )
-  );
-};
-
-const handleGetUserIdResponse = (res: any): Either<Error, UserId> => {
-  const { data } = res;
-  return data?.id
-    ? right({
-        value: data.id,
-      })
-    : left(Error("Could not retrieve user ID"));
-};
 
 const generateName = (start: string, end: string): string => {
   return `Top tracks from ${start} - ${end}`;
 };
-
-export { getCurrentUserId, handleGetUserIdResponse };
