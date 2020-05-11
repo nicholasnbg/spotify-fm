@@ -63,6 +63,6 @@ export const createPlaylist = (
 
 
 
-const generateName = (start: string, end: string): string => {
-  return `Top tracks from ${start} - ${end}`;
+const generateName = (start: string, end: string, playlistName?: string): string => {
+  return playlistName ? playlistName : `Top tracks from ${start} - ${end}`;
 };
