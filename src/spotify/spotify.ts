@@ -1,3 +1,4 @@
+import { pipe } from 'fp-ts/lib/pipeable';
 import * as E from "fp-ts/lib/Either";
 import { Either } from "fp-ts/lib/Either";
 import * as T from "fp-ts/lib/Task";
@@ -37,32 +38,23 @@ export const createPlaylist = (
 ): T.Task<Either<Error, string>> => {
   const playlistName = generateName(playlistParams.startDate, playlistParams.endDate);
 
-  const errorOrUserIdTask = getCurrentUserId(authCode);
-
-  return T.chain((errorOrUserId: Either<Error, UserId>) => {
-    const errorOrPlaylistIdTask = T.map(E.flatten)(
-      traverseEither(errorOrUserId, (id: UserId) => generateNewPlaylist(authCode, playlistName, "test description", id))
-    );
-
-    return T.chain((errorOrPlaylistId: Either<Error, PlaylistId>) => {
-      const eitherTaskRes = traverseEither(errorOrPlaylistId, (playlistId: PlaylistId) => {
-        console.log("SEARCHING TRACKS");
-        const tracksTask = seqArrayTask(rawTracks.map((track) => searchTrack(authCode, track)));
-
-        return T.chain((eoTracksArr: Either<Error, SpotifyTrack>[]) => {
-          const validTracks = eoTracksArr.filter(E.isRight).map((r) => r.right);
-          const addTracks = addTracksToPlaylist(authCode, playlistId.value, validTracks);
-          return addTracks;
-        })(tracksTask);
-      });
-
-      return T.map(E.flatten)(eitherTaskRes);
-    })(errorOrPlaylistIdTask);
-  })(errorOrUserIdTask);
+  return pipe(
+    getCurrentUserId(authCode),
+    T.chain((errorOrUserId: Either<Error, UserId>) => T.map(E.flatten)(traverseEither(errorOrUserId, (id: UserId) => generateNewPlaylist(authCode, playlistName, "test description", id)))),
+    T.chain((errorOrPlaylistId: Either<Error, PlaylistId>) => addTracks(errorOrPlaylistId, authCode, rawTracks))
+  )
 };
 
+const addTracks = (errorOrPlaylistId: Either<Error, PlaylistId>, authCode: string, rawTracks: LastFmTrack[]): T.Task<E.Either<Error, string>> => {
+  return pipe(
+    seqArrayTask(rawTracks.map((track) => searchTrack(authCode, track))),
+    T.chain((errorsOrTracks) => addToPlaylist(errorsOrTracks, errorOrPlaylistId, authCode))
+  )
+}
 
+const addToPlaylist = (errorsOrSpotifyTracks: E.Either<Error, SpotifyTrack>[], errorOrPlaylistId: Either<Error,PlaylistId>, authCode: string): T.Task<E.Either<Error, string>> => {
+    const validTracks = errorsOrSpotifyTracks.filter(E.isRight).map((r) => r.right);
+    return T.map(E.flatten)(traverseEither(errorOrPlaylistId, (playlistId) => addTracksToPlaylist(authCode, playlistId.value, validTracks)))
+}
 
-const generateName = (start: string, end: string, playlistName?: string): string => {
-  return playlistName ? playlistName : `Top tracks from ${start} - ${end}`;
-};
+const generateName = (start: string, end: string, playlistName?: string): string =>  playlistName ? playlistName : `Top tracks from ${start} - ${end}`

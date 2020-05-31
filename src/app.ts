@@ -36,7 +36,10 @@ app.get("/callback", async (req, res) => {
     const callbackQuery: CallbackQuery = req.query;
     if (callbackQuery.code) {
       requestTokens(callbackQuery.code, fetchTokens)().then((errorOrTokens) => {
-        pipe(errorOrTokens, E.fold(handleLeft, handleRight));
+        pipe(
+          errorOrTokens,
+          E.fold(handleLeft, handleRight)
+          );
       });
     }
   } catch (error) {
@@ -51,7 +54,7 @@ app.post("/createPlaylist", async (req, res) => {
 
   const errorOrTracksTask = fetchTopTracks("nicholasnbg", start, end, params.limit);
 
-  const result = await T.chain((errorOrTracks: E.Either<Error, LastFmTrack[]>) => {
+  await T.chain((errorOrTracks: E.Either<Error, LastFmTrack[]>) => {
     return T.map(E.flatten)(
       traverseEither(errorOrTracks, (tracks: LastFmTrack[]) => createPlaylist(tokens.access_token, params, tracks))
     );

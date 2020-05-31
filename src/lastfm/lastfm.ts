@@ -1,9 +1,10 @@
+import { pipe } from 'fp-ts/lib/pipeable';
 import axios from "axios";
 import * as E from "fp-ts/lib/Either";
 import * as T from "fp-ts/lib/Task";
 import * as TE from "fp-ts/lib/TaskEither";
 import { Moment } from "moment";
-import { right, left, flatten } from "fp-ts/lib/Either";
+import { right, left } from "fp-ts/lib/Either";
 
 const fetchTopTracks = (
   username: string,
@@ -18,18 +19,21 @@ const fetchTopTracks = (
   const endpoint = LASTFM_BASE_URL + TOP_TRACKS_ENPOINT;
   console.log("FETCHING TRACKS FROM: " + endpoint);
 
-  return T.map(flatten)(
-    TE.tryCatch(
-      () => axios.get(endpoint).then(res => handleTopTracksResponse(res, limit)),
+  const errorOrResponse = TE.tryCatch(
+      () => axios.get(endpoint),
       (err) => new Error("Problem fetching top tracks: " + String(err))
     )
+
+  return pipe(
+    errorOrResponse,
+    T.map((errorOrResp) => E.chain(res => handleTopTracksResponse(res, limit))(errorOrResp))
   )
 };
 
 const handleTopTracksResponse = (res: any, limit: number): E.Either<Error, LastFmTrack[]> => {
   const { data } = res;
   const tracks = data?.weeklytrackchart?.track
-  return tracks ? right(tracks.map(track => transformTrack(track)).slice(0, limit)) : left(Error("Error transforming tracks response"))
+  return tracks ? right(tracks.map(transformTrack).slice(0, limit)) : left(Error("Error transforming tracks response"))
 }
 
 const generateTopTracksEndpoint = (username: string, startDate: Moment, endDate: Moment, apiKey: string): string => {

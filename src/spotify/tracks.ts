@@ -1,6 +1,8 @@
+import { pipe } from 'fp-ts/lib/pipeable';
 import axios from "axios";
 import rateLimit from "axios-rate-limit";
-import { Either, flatten, left, right } from "fp-ts/lib/Either";
+import { Either, left, right } from "fp-ts/lib/Either";
+import * as E from 'fp-ts/lib/Either'
 import * as T from "fp-ts/lib/Task";
 import * as TE from "fp-ts/lib/TaskEither";
 import qs from "qs";
@@ -29,12 +31,15 @@ export const searchTrack = (authCode: string, track: LastFmTrack): T.Task<Either
     headers,
   };
 
-  return T.map(flatten)(
-    TE.tryCatch(
-      () => rateLimitHttpClient.get(endpoint, config).then((res) => handleSearchTrackResponse(res)),
-      (err) => new Error("Problem searching for track")
-    )
+  const errorOrResponseTask: T.Task<Either<Error,any>> = TE.tryCatch(
+    () => rateLimitHttpClient.get(endpoint, config),
+    (err) => new Error("Problem searching for track")
   );
+
+  return pipe(
+    errorOrResponseTask,
+    T.map((errorOrResp) => E.chain(handleSearchTrackResponse)(errorOrResp))
+  )
 };
 
 export const handleSearchTrackResponse = (res: any): Either<Error, SpotifyTrack> => {
@@ -65,34 +70,27 @@ export const addTracksToPlaylist = (
   playlistId: string,
   tracks: SpotifyTrack[]
 ): T.Task<Either<Error, string>> => {
+  console.log("ADDING TRACKS");
 
-  console.log("ADDING TRACKS")
-
-  const uris = tracks.map((track) => {
-    console.log(track.name);
-    return track.uri;
-  });
-  const data = JSON.stringify({
-    uris
-  });
-
+  const uris = tracks.map(track => track.uri);
+  const data = JSON.stringify({ uris });
   const endpoint = `https://api.spotify.com/v1/playlists/${playlistId}/tracks`;
-
-  const headers = {
-    Authorization: `Bearer ${authCode}`,
-    "Content-Type": "application/json",
-  };
   const config = {
-    headers,
+    headers: {
+      Authorization: `Bearer ${authCode}`,
+      "Content-Type": "application/json",
+    },
   };
 
-  return T.map(flatten)(
-    TE.tryCatch(
-      () => axios.post(endpoint, data, config).then((res) => handleAddTracksResponse(res)),
-      err => Error("Couldn't add tracks:" + String(err))
+  const errorOrResponseTask = TE.tryCatch(
+      () => axios.post(endpoint, data, config),
+      (err) => Error("Couldn't add tracks:" + String(err))
     )
-  )
 
+  return pipe(
+    errorOrResponseTask,
+    T.map((errorOrResp) => E.chain(handleAddTracksResponse)(errorOrResp))
+  )
 };
 
 export const handleAddTracksResponse = (res: any): Either<Error, string> => {
